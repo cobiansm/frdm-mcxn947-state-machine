@@ -45,6 +45,8 @@ void cyan_led_state(void *ptr);
 void magenta_led_state(void *ptr);
 void yellow_led_state(void *ptr);
 void white_led_state(void *ptr);
+void disco_led_state(void *ptr);
+void off_led_state(void *ptr);
 /*******************************************************************************
  * Variables
  ******************************************************************************/
@@ -59,6 +61,8 @@ static ledState cyan_led_state_s;
 static ledState magenta_led_state_s;
 static ledState yellow_led_state_s;
 static ledState white_led_state_s;
+static ledState disco_led_state_s;
+static ledState off_led_state_s;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -143,6 +147,46 @@ void white_led_state(void *ptr) {
     LED_BLUE_ON();
 }
 
+/*
+* Disco LED state
+*/
+void disco_led_state(void *ptr) {
+    LED_RED_OFF();
+    LED_GREEN_OFF();
+    LED_BLUE_OFF();
+
+    static uint32_t counter = 0;
+    const uint32_t threshold = 200;
+
+    counter++;
+    if (counter >= threshold)
+    {
+        // Pick a random color
+        int c = rand() % 7; // 0-6: RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN
+        switch(c)
+        {
+            case 0: LED_RED_ON(); break;
+            case 1: LED_GREEN_ON(); break;
+            case 2: LED_BLUE_ON(); break;
+            case 3: LED_RED_ON(); LED_GREEN_ON(); break;   // YELLOW
+            case 4: LED_RED_ON(); LED_BLUE_ON(); break;    // MAGENTA
+            case 5: LED_GREEN_ON(); LED_BLUE_ON(); break;  // CYAN
+            case 6: LED_RED_ON(); LED_GREEN_ON(); LED_BLUE_ON(); break; // WHITE (optional)
+        }
+        SDK_DelayAtLeastUs(200000, SystemCoreClock);
+        counter = 0;
+    }
+}
+
+/*
+* Off LED state
+*/
+void off_led_state(void *ptr) {
+    LED_RED_OFF();
+    LED_GREEN_OFF();
+    LED_BLUE_OFF();
+}
+
 /* 
 * Function to initialize the states of the state machine
 */
@@ -150,7 +194,7 @@ static void states_init(void)
 {
     red_led_state_s.led_state  = red_led_state;
     red_led_state_s.next    = &green_led_state_s;    
-    red_led_state_s.prev    = &white_led_state_s;   
+    red_led_state_s.prev    = &off_led_state_s;   
     red_led_state_s.name    = "RED";
 
     green_led_state_s.led_state  = green_led_state;
@@ -179,9 +223,19 @@ static void states_init(void)
     yellow_led_state_s.name    = "YELLOW";
 
     white_led_state_s.led_state  = white_led_state;
-    white_led_state_s.next     = &red_led_state_s;    
+    white_led_state_s.next     = &disco_led_state_s;    
     white_led_state_s.prev     = &yellow_led_state_s;  
     white_led_state_s.name     = "WHITE";
+
+    disco_led_state_s.led_state  = disco_led_state;
+    disco_led_state_s.next     = &off_led_state_s;    
+    disco_led_state_s.prev     = &white_led_state_s;  
+    disco_led_state_s.name     = "DISCO";
+
+    off_led_state_s.led_state  = off_led_state;
+    off_led_state_s.next     = &red_led_state_s;    
+    off_led_state_s.prev     = &disco_led_state_s;  
+    off_led_state_s.name     = "OFF";
 }
 
 /*
