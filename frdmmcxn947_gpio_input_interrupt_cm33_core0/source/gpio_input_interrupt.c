@@ -17,7 +17,6 @@
 #endif
 #include "fsl_gpio.h"
 #include "fsl_common.h"
-#include "app.h"
 #include "pin_mux.h"
 #include "board.h"
 /*******************************************************************************
@@ -27,13 +26,12 @@
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
-
+void BOARD_InitHardware(void);
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-/* Whether the SW button is pressed */
-volatile bool g_ButtonPress = false;
-
+volatile bool sw3_ButtonPress = false;
+volatile bool sw2_ButtonPress = false;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -42,18 +40,16 @@ volatile bool g_ButtonPress = false;
  *
  * This function toggles the LED
  */
-void BOARD_SW_IRQ_HANDLER(void)
+void GPIO00_IRQHandler(void)
 {
-#if (defined(FSL_FEATURE_PORT_HAS_NO_INTERRUPT) && FSL_FEATURE_PORT_HAS_NO_INTERRUPT) || \
-    (!defined(FSL_FEATURE_SOC_PORT_COUNT))
-    /* Clear external interrupt flag. */
-    GPIO_GpioClearInterruptFlags(BOARD_SW_GPIO, 1U << BOARD_SW_GPIO_PIN);
-#else
-    /* Clear external interrupt flag. */
-    GPIO_PortClearInterruptFlags(BOARD_SW_GPIO, 1U << BOARD_SW_GPIO_PIN);
-#endif
-    /* Change state of button. */
-    g_ButtonPress = true;
+	if (GPIO_PinGetInterruptFlag(GPIO0, BOARD_SW3_GPIO_PIN)) {
+		GPIO_PinClearInterruptFlag(GPIO0, BOARD_SW3_GPIO_PIN);
+		sw3_ButtonPress = true;
+	} if (GPIO_PinGetInterruptFlag(GPIO0, BOARD_SW2_GPIO_PIN)) {
+		GPIO_PinClearInterruptFlag(GPIO0, BOARD_SW2_GPIO_PIN);
+		sw2_ButtonPress = true;
+	}
+
     SDK_ISR_EXIT_BARRIER;
 }
 
@@ -78,30 +74,43 @@ int main(void)
 
     /* Print a note to terminal. */
     PRINTF("\r\n GPIO Driver example\r\n");
-    PRINTF("\r\n Press %s to turn on/off a LED \r\n", BOARD_SW_NAME);
 
-/* Init input switch GPIO. */
-#if (defined(FSL_FEATURE_PORT_HAS_NO_INTERRUPT) && FSL_FEATURE_PORT_HAS_NO_INTERRUPT) || \
-    (!defined(FSL_FEATURE_SOC_PORT_COUNT))
-    GPIO_SetPinInterruptConfig(BOARD_SW_GPIO, BOARD_SW_GPIO_PIN, kGPIO_InterruptFallingEdge);
-#else
-    PORT_SetPinInterruptConfig(BOARD_SW_PORT, BOARD_SW_GPIO_PIN, kPORT_InterruptFallingEdge);
-#endif
-    EnableIRQ(BOARD_SW_IRQ);
-    GPIO_PinInit(BOARD_SW_GPIO, BOARD_SW_GPIO_PIN, &sw_config);
+    /* Init input switch GPIO. */
+    GPIO_PinInit(BOARD_SW3_GPIO, BOARD_SW3_GPIO_PIN, &sw_config);
+    GPIO_PinInit(BOARD_SW2_GPIO, BOARD_SW2_GPIO_PIN, &sw_config);
+
+    GPIO_SetPinInterruptConfig(GPIO0, BOARD_SW3_GPIO_PIN, kGPIO_InterruptFallingEdge);
+    GPIO_SetPinInterruptConfig(GPIO0, BOARD_SW2_GPIO_PIN, kGPIO_InterruptFallingEdge);
+
+    GPIO_PinClearInterruptFlag(GPIO0, 0xFFFFFFFF);
+
+    EnableIRQ(GPIO00_IRQn);
 
     /* Init output LED GPIO. */
-    GPIO_PinInit(BOARD_LED_GPIO, BOARD_LED_GPIO_PIN, &led_config);
+    GPIO_PinInit(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN, &led_config);
+    GPIO_PinInit(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PIN, &led_config);
+
+    GPIO_PortSet(GPIO0, 1U << BOARD_LED_RED_GPIO_PIN);
+    GPIO_PortSet(GPIO0, 1U << BOARD_LED_BLUE_GPIO_PIN);
+
+    GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PIN, 1);
+    GPIO_PinWrite(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PIN, 1);
 
     while (1)
     {
-        if (g_ButtonPress)
+        if (sw3_ButtonPress)
         {
-            PRINTF(" %s is pressed \r\n", BOARD_SW_NAME);
+            PRINTF(" %s is pressed \r\n", BOARD_SW3_NAME);
             /* Toggle LED. */
-            GPIO_PortToggle(BOARD_LED_GPIO, 1U << BOARD_LED_GPIO_PIN);
+            GPIO_PortToggle(BOARD_LED_RED_GPIO, 1U << BOARD_LED_RED_GPIO_PIN);
             /* Reset state of button. */
-            g_ButtonPress = false;
+            sw3_ButtonPress = false;
+        } if (sw2_ButtonPress) {
+        	PRINTF(" %s is pressed \r\n", BOARD_SW2_NAME);
+			/* Toggle LED. */
+			GPIO_PortToggle(BOARD_LED_BLUE_GPIO, 1U << BOARD_LED_BLUE_GPIO_PIN);
+			/* Reset state of button. */
+			sw2_ButtonPress = false;
         }
     }
 }
