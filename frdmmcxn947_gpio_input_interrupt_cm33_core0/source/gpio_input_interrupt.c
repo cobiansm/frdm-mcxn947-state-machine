@@ -41,6 +41,10 @@ void BOARD_InitHardware(void);
 void red_led_state(void *ptr);
 void green_led_state(void *ptr);
 void blue_led_state(void *ptr);
+void cyan_led_state(void *ptr);
+void magenta_led_state(void *ptr);
+void yellow_led_state(void *ptr);
+void white_led_state(void *ptr);
 /*******************************************************************************
  * Variables
  ******************************************************************************/
@@ -51,6 +55,10 @@ volatile bool sw2_ButtonPress = false;
 static ledState red_led_state_s;
 static ledState green_led_state_s;
 static ledState blue_led_state_s;
+static ledState cyan_led_state_s;
+static ledState magenta_led_state_s;
+static ledState yellow_led_state_s;
+static ledState white_led_state_s;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -99,6 +107,42 @@ void blue_led_state(void *ptr) {
     LED_BLUE_ON();
 }
 
+/*
+* Cyan LED state
+*/
+void cyan_led_state(void *ptr) {
+    LED_RED_OFF();
+    LED_GREEN_ON();
+    LED_BLUE_ON();
+}
+
+/*
+* Magenta LED state
+*/
+void magenta_led_state(void *ptr) {
+    LED_RED_ON();
+    LED_GREEN_OFF();
+    LED_BLUE_ON();
+}
+
+/*
+* Yellow LED state
+*/
+void yellow_led_state(void *ptr) {
+    LED_RED_ON();
+    LED_GREEN_ON();
+    LED_BLUE_OFF();
+}
+
+/*
+* White LED state
+*/
+void white_led_state(void *ptr) {
+    LED_RED_ON();
+    LED_GREEN_ON();
+    LED_BLUE_ON();
+}
+
 /* 
 * Function to initialize the states of the state machine
 */
@@ -106,7 +150,7 @@ static void states_init(void)
 {
     red_led_state_s.led_state  = red_led_state;
     red_led_state_s.next    = &green_led_state_s;    
-    red_led_state_s.prev    = &blue_led_state_s;   
+    red_led_state_s.prev    = &white_led_state_s;   
     red_led_state_s.name    = "RED";
 
     green_led_state_s.led_state  = green_led_state;
@@ -115,9 +159,29 @@ static void states_init(void)
     green_led_state_s.name    = "GREEN";
 
     blue_led_state_s.led_state  = blue_led_state;
-    blue_led_state_s.next    = &red_led_state_s;    
-    blue_led_state_s.prev    = &green_led_state_s;  
-    blue_led_state_s.name    = "BLUE";
+    blue_led_state_s.next    = &cyan_led_state_s;    
+    blue_led_state_s.prev    = &green_led_state_s; 
+    blue_led_state_s.name    = "BLUE"; 
+
+    cyan_led_state_s.led_state  = cyan_led_state;
+    cyan_led_state_s.next    = &magenta_led_state_s;    
+    cyan_led_state_s.prev    = &blue_led_state_s;  
+    cyan_led_state_s.name    = "CYAN";
+
+    magenta_led_state_s.led_state  = magenta_led_state;
+    magenta_led_state_s.next    = &yellow_led_state_s;    
+    magenta_led_state_s.prev    = &cyan_led_state_s;  
+    magenta_led_state_s.name    = "MAGENTA";
+
+    yellow_led_state_s.led_state  = yellow_led_state;
+    yellow_led_state_s.next    = &white_led_state_s;    
+    yellow_led_state_s.prev    = &magenta_led_state_s;  
+    yellow_led_state_s.name    = "YELLOW";
+
+    white_led_state_s.led_state  = white_led_state;
+    white_led_state_s.next     = &red_led_state_s;    
+    white_led_state_s.prev     = &yellow_led_state_s;  
+    white_led_state_s.name     = "WHITE";
 }
 
 /*
