@@ -1,5 +1,5 @@
 /*
- * State Machine
+ * Scheduler FIFO
  * Marlene Cobian
  */
 
@@ -19,19 +19,7 @@
 #include "fsl_common.h"
 #include "pin_mux.h"
 #include "board.h"
-/*******************************************************************************
- * Definitions
- ******************************************************************************/
-// function type for each state
-typedef void (*active_state_s)(void *);
 
-// structure of a state
-typedef struct ledState{
-    active_state_s led_state;
-    struct ledState *next;
-    struct ledState *prev;
-    const char *name;
-} ledState;
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -48,21 +36,43 @@ void white_led_state(void *ptr);
 void disco_led_state(void *ptr);
 void off_led_state(void *ptr);
 /*******************************************************************************
+ * Definitions
+ ******************************************************************************/
+// enum for states
+typedef enum {
+    READY,
+    RUNNING,
+    BLOCKED 
+} state_t;
+
+ // function type for each state
+typedef void (*active_state_s)(void *ptr);
+
+// structure of a state
+typedef struct {
+    active_state_s led_state;
+    int burst_time;
+    int ID;
+    state_t state;
+} task;
+
+// task array
+task task_array[] = {
+    { red_led_state, 5, 1, READY},
+    { green_led_state, 3, 2, READY},
+    { blue_led_state, 1, 3, READY},
+    { cyan_led_state, 4, 4, READY},
+    { magenta_led_state, 2, 5, READY},
+    { yellow_led_state, 6, 6, READY},
+    { white_led_state, 7, 7, READY},
+    { disco_led_state, 8, 8, READY},
+    { off_led_state, 9, 9, READY}
+};
+/*******************************************************************************
  * Variables
  ******************************************************************************/
 volatile bool sw3_ButtonPress = false;
 volatile bool sw2_ButtonPress = false;
-
-// declaration of the states' variables
-static ledState red_led_state_s;
-static ledState green_led_state_s;
-static ledState blue_led_state_s;
-static ledState cyan_led_state_s;
-static ledState magenta_led_state_s;
-static ledState yellow_led_state_s;
-static ledState white_led_state_s;
-static ledState disco_led_state_s;
-static ledState off_led_state_s;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -187,75 +197,23 @@ void off_led_state(void *ptr) {
     LED_BLUE_OFF();
 }
 
-/* 
-* Function to initialize the states of the state machine
-*/
-static void states_init(void)
-{
-    red_led_state_s.led_state  = red_led_state;
-    red_led_state_s.next    = &green_led_state_s;    
-    red_led_state_s.prev    = &off_led_state_s;   
-    red_led_state_s.name    = "RED";
-
-    green_led_state_s.led_state  = green_led_state;
-    green_led_state_s.next    = &blue_led_state_s;    
-    green_led_state_s.prev    = &red_led_state_s;  
-    green_led_state_s.name    = "GREEN";
-
-    blue_led_state_s.led_state  = blue_led_state;
-    blue_led_state_s.next    = &cyan_led_state_s;    
-    blue_led_state_s.prev    = &green_led_state_s; 
-    blue_led_state_s.name    = "BLUE"; 
-
-    cyan_led_state_s.led_state  = cyan_led_state;
-    cyan_led_state_s.next    = &magenta_led_state_s;    
-    cyan_led_state_s.prev    = &blue_led_state_s;  
-    cyan_led_state_s.name    = "CYAN";
-
-    magenta_led_state_s.led_state  = magenta_led_state;
-    magenta_led_state_s.next    = &yellow_led_state_s;    
-    magenta_led_state_s.prev    = &cyan_led_state_s;  
-    magenta_led_state_s.name    = "MAGENTA";
-
-    yellow_led_state_s.led_state  = yellow_led_state;
-    yellow_led_state_s.next    = &white_led_state_s;    
-    yellow_led_state_s.prev    = &magenta_led_state_s;  
-    yellow_led_state_s.name    = "YELLOW";
-
-    white_led_state_s.led_state  = white_led_state;
-    white_led_state_s.next     = &disco_led_state_s;    
-    white_led_state_s.prev     = &yellow_led_state_s;  
-    white_led_state_s.name     = "WHITE";
-
-    disco_led_state_s.led_state  = disco_led_state;
-    disco_led_state_s.next     = &off_led_state_s;    
-    disco_led_state_s.prev     = &white_led_state_s;  
-    disco_led_state_s.name     = "DISCO";
-
-    off_led_state_s.led_state  = off_led_state;
-    off_led_state_s.next     = &red_led_state_s;    
-    off_led_state_s.prev     = &disco_led_state_s;  
-    off_led_state_s.name     = "OFF";
-}
-
 /*
-* Change between states, SW3 goes forward, SW2 goes backwards. No switch statement, just pointers.
+* Scheduler implementation 
 */
-static void state_machine_step(ledState **current, bool sw2_pressed, bool sw3_pressed, void *ptr)
+void fifo_scheduler(void)
 {
-    if (current == NULL || *current == NULL) return;
-
-    /* Execute current state */
-    PRINTF("Entering state: %s\r\n", (*current)->name);
-    (*current)->led_state(ptr);
-
-    /* Change forwards or backwards */
-    if (sw3_pressed && (*current)->next) {
-        *current = (*current)->next;
-        sw3_ButtonPress = false;
-    } else if (sw2_pressed && (*current)->prev) {
-        *current = (*current)->prev;
-        sw2_ButtonPress = false;
+    for (int i = 0; i < (sizeof(task_array)/sizeof(task)); i++) {
+        task *t = &task_array[i];
+        if (t->state == READY) {
+            t->state = RUNNING;
+            t->led_state(NULL); 
+            for (int j = 0; j < t->burst_time; j++) {
+                PRINTF("Task %d is running, burst time left: %d\r\n", t->ID, t->burst_time - j);
+                SDK_DelayAtLeastUs(1000000, SystemCoreClock); 
+            }
+            t->state = BLOCKED;
+            PRINTF("Task %d completed and blocked\r\n", t->ID);
+        }
     }
 }
 
@@ -297,11 +255,8 @@ int main(void)
     LED_GREEN_INIT(LOGIC_LED_OFF);
     GPIO_PinInit(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PIN, &led_config);
 
-    states_init();
-    ledState *current_state = &red_led_state_s;
-
     while (1)
     {
-        state_machine_step(&current_state, sw2_ButtonPress, sw3_ButtonPress, NULL);
+        fifo_scheduler();
     }
 }
