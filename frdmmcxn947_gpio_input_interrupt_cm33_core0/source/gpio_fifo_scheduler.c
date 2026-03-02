@@ -20,6 +20,7 @@
 #include "pin_mux.h"
 #include "board.h"
 
+#define MAX_TASKS 10
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -57,22 +58,21 @@ typedef struct {
 } task;
 
 // task array
-task task_array[] = {
+task task_array[MAX_TASKS] = {
     { red_led_state, 5, 1, READY},
     { green_led_state, 3, 2, READY},
-    { blue_led_state, 1, 3, READY},
+    { blue_led_state, 2, 3, READY},
     { cyan_led_state, 4, 4, READY},
-    { magenta_led_state, 2, 5, READY},
+    { magenta_led_state, 8, 5, READY},
     { yellow_led_state, 6, 6, READY},
-    { white_led_state, 7, 7, READY},
-    { disco_led_state, 8, 8, READY},
-    { off_led_state, 9, 9, READY}
+    { white_led_state, 7, 7, READY}
 };
 /*******************************************************************************
  * Variables
  ******************************************************************************/
 volatile bool sw3_ButtonPress = false;
 volatile bool sw2_ButtonPress = false;
+int current_tasks = 7;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -202,19 +202,33 @@ void off_led_state(void *ptr) {
 */
 void fifo_scheduler(void)
 {
-    for (int i = 0; i < (sizeof(task_array)/sizeof(task)); i++) {
+    for (int i = 0; i < current_tasks; i++) {
         task *t = &task_array[i];
         if (t->state == READY) {
             t->state = RUNNING;
             t->led_state(NULL); 
             for (int j = 0; j < t->burst_time; j++) {
                 PRINTF("Task %d is running, burst time left: %d\r\n", t->ID, t->burst_time - j);
-                SDK_DelayAtLeastUs(1000000, SystemCoreClock); 
+                for(volatile int delay = 0; delay < 10000000; delay++);
+				if (sw2_ButtonPress || sw3_ButtonPress) return;
             }
             t->state = BLOCKED;
             PRINTF("Task %d completed and blocked\r\n", t->ID);
         }
     }
+}
+
+/*
+* Task table
+*/
+void print_task_table(void) {
+    PRINTF("\r\n====== TASK TABLE ======\r\n");
+    PRINTF("ID\tBurst\tState\r\n");
+    for (int i = 0; i < current_tasks; i++) {
+        char* status = (task_array[i].state == READY) ? "READY" : "BLOCKED";
+        PRINTF("%d\t%d\t%s\r\n", task_array[i].ID, task_array[i].burst_time, status);
+    }
+    PRINTF("========================\r\n\n");
 }
 
 /*!
@@ -237,7 +251,7 @@ int main(void)
     BOARD_InitHardware();
 
     /* Print a note to terminal. */
-    PRINTF("\r\n State Machine \r\n");
+    PRINTF("\r\n FIFO Scheduler \r\n");
 
     /* Init input switch GPIO. */
     GPIO_PinInit(BOARD_SW3_GPIO, BOARD_SW3_GPIO_PIN, &sw_config);
@@ -257,6 +271,29 @@ int main(void)
 
     while (1)
     {
-        fifo_scheduler();
+    	if (sw2_ButtonPress) {
+        	if (current_tasks < MAX_TASKS) {
+        		task_array[current_tasks].led_state = off_led_state;
+				task_array[current_tasks].burst_time = (rand() % 5) + 2;
+				task_array[current_tasks].ID = current_tasks + 1;
+				task_array[current_tasks].state = READY;
+
+				PRINTF(">>SW3 Pressed: Task %d created\r\n", task_array[current_tasks].ID);
+				current_tasks++;
+				print_task_table();
+			} else {
+				PRINTF("Max tasks reached\r\n");
+			}
+			sw2_ButtonPress = false;
+		}
+    	if (sw3_ButtonPress) {
+			for (int k = 0; k < current_tasks; k++) {
+				task_array[k].state = READY;
+			}
+			PRINTF(">>SW3 Pressed: All tasks READY\r\n");
+			print_task_table();
+			sw3_ButtonPress = false;
+		}
+    	fifo_scheduler();
     }
 }
