@@ -1,35 +1,10 @@
-# Create a state machine
+# FreeRTOS car driver
 
 ## Overview
 
-This project implements a state machine for RGB LEDs using function pointers. Two push buttons (SW2 and SW3) are used as inputs to navigate between states:
+This project implements a sequential car movement system using Task Suspension and Priorities in FreeRTOS.
 
-- **SW3:** Move forward to the next state
-- **SW2:** Move backward to the previous state
+## How it Works
 
-Each state corresponds to a specific LED color or behavior. The project demonstrates modular state handling, interrupt-driven button control, and different LED colors.
-
-## Features
-
-- Function-pointer based state machine
-- Nine distinct LED states using an RGB LED
-- Debounced input using GPIO interrupts
-- Ability to implement advanced LED effects 
-
-## State transition diagram
-
-![State Machine Diagram](diagram.png)
-
-## State transition table
-
-| Current State | SW3 Pressed (Next) | SW2 Pressed (Previous) | LEDs ON                     | Perceived Color   |
-|---------------|------------------|-----------------------|-----------------------------|-----------------|
-| RED           | GREEN            | OFF                   | Red                         | Red             |
-| GREEN         | BLUE             | RED                   | Green                       | Green           |
-| BLUE          | CYAN             | GREEN                 | Blue                        | Blue            |
-| CYAN          | MAGENTA          | BLUE                  | Green + Blue                | Cyan            |
-| MAGENTA       | YELLOW           | CYAN                  | Red + Blue                  | Magenta         |
-| YELLOW        | WHITE            | MAGENTA               | Red + Green                 | Yellow          |
-| WHITE         | DISCO            | YELLOW                | Red + Green + Blue          | White           |
-| DISCO         | OFF              | WHITE                 | Random                      | Disco           |
-| OFF           | RED              | DISCO                 | None                        | Off             |
+- Control Task: Reads a sequence string (e.g., "FBLR"). Based on each character, it wakes up the corresponding task using vTaskResume().
+- Movement Tasks: Since they have higher priority, they immediately preempt the control task when resumed. They perform the movement, stop the car, and then call vTaskSuspend(NULL).
