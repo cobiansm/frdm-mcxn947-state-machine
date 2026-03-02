@@ -1,35 +1,31 @@
-# Create a state machine
+# FIFO scheduler
 
 ## Overview
 
-This project implements a state machine for RGB LEDs using function pointers. Two push buttons (SW2 and SW3) are used as inputs to navigate between states:
+This project implements a Non-Preemptive FIFO (First-In, First-Out) Task Scheduler for an RGB LED system using function pointers. This scheduler manages a queue of tasks, each with a specific Burst Time, and executes them sequentially until completion.
 
-- **SW3:** Move forward to the next state
-- **SW2:** Move backward to the previous state
+- **SW3:** Resets all completed tasks back to the READY state to restart the cycle
+- **SW2:** Creates and adds a new task to the queue (up to 10 tasks)
 
-Each state corresponds to a specific LED color or behavior. The project demonstrates modular state handling, interrupt-driven button control, and different LED colors.
+Each task executes its specific LED behavior for a defined burst time. The project demonstrates non-preemptive scheduling, interrupt-driven task management, and a sequential execution flow.
 
-## Features
+## Scheduling states
 
-- Function-pointer based state machine
-- Nine distinct LED states using an RGB LED
-- Debounced input using GPIO interrupts
-- Ability to implement advanced LED effects 
+The scheduler manages tasks through three primary states:
+- **READY:** The task is in the queue waiting for its turn.
+- **RUNNING:** The task currently has control of the MCU.
+- **BLOCKED:** The task has finished its execution and is waiting for a system reset.
 
-## State transition diagram
+## Scheduler
 
-![State Machine Diagram](diagram.png)
+| Task ID | Next Task (FIFO) | Burst Time  | LEDs ON                     | Perceived Color |
+|:-------:|:----------------:|:------------------:|:----------------------------|:---------------:|
+| **T1**  | T2               | 5                  | Red                         | Red             |
+| **T2**  | T3               | 3                  | Green                       | Green           |
+| **T3**  | T4               | 1                  | Blue                        | Blue            |
+| **T4**  | T5               | 4                  | Green + Blue                | Cyan            |
+| **T5**  | T6               | 2                  | Red + Blue                  | Magenta         |
+| **T6**  | T7               | 6                  | Red + Green                 | Yellow          |
+| **T7**  | T8               | 7                  | Red + Green + Blue          | White          
+| **T8-10**  | END              | Random                  | None                        | Off             |
 
-## State transition table
-
-| Current State | SW3 Pressed (Next) | SW2 Pressed (Previous) | LEDs ON                     | Perceived Color   |
-|---------------|------------------|-----------------------|-----------------------------|-----------------|
-| RED           | GREEN            | OFF                   | Red                         | Red             |
-| GREEN         | BLUE             | RED                   | Green                       | Green           |
-| BLUE          | CYAN             | GREEN                 | Blue                        | Blue            |
-| CYAN          | MAGENTA          | BLUE                  | Green + Blue                | Cyan            |
-| MAGENTA       | YELLOW           | CYAN                  | Red + Blue                  | Magenta         |
-| YELLOW        | WHITE            | MAGENTA               | Red + Green                 | Yellow          |
-| WHITE         | DISCO            | YELLOW                | Red + Green + Blue          | White           |
-| DISCO         | OFF              | WHITE                 | Random                      | Disco           |
-| OFF           | RED              | DISCO                 | None                        | Off             |
