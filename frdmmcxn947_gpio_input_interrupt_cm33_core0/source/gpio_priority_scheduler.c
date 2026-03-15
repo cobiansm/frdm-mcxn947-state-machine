@@ -54,18 +54,19 @@ typedef struct {
     active_state_s led_state;
     int burst_time;
     int ID;
+    int priority;
     state_t state;
 } task;
 
 // task array
 task task_array[MAX_TASKS] = {
-    { red_led_state, 5, 1, READY},
-    { green_led_state, 3, 2, READY},
-    { blue_led_state, 2, 3, READY},
-    { cyan_led_state, 4, 4, READY},
-    { magenta_led_state, 8, 5, READY},
-    { yellow_led_state, 6, 6, READY},
-    { white_led_state, 7, 7, READY}
+    { red_led_state, 5, 1, 2, READY},
+    { green_led_state, 3, 2, 4, READY},
+    { blue_led_state, 2, 3, 3, READY},
+    { cyan_led_state, 4, 4, 7, READY},
+    { magenta_led_state, 8, 5, 2, READY},
+    { yellow_led_state, 6, 6, 5, READY},
+    { white_led_state, 7, 7, 3, READY}
 };
 /*******************************************************************************
  * Variables
@@ -198,44 +199,63 @@ void off_led_state(void *ptr) {
 }
 
 /*
+* Task table
+*/
+void print_task_table(void) {
+    PRINTF("========== TASK TABLE ==========\r\n");
+    PRINTF("ID\tPrty\tBurst\tState\r\n");
+    for (int i = 0; i < current_tasks; i++) {
+        char* status = (task_array[i].state == READY) ? "READY" : "BLOCKED";
+        PRINTF("%d\t%d\t%d\t%s\r\n", task_array[i].ID, task_array[i].priority, task_array[i].burst_time, status);
+    }
+    PRINTF("================================\r\n\n");
+}
+
+/*
+ * Bubble sort
+ */
+void bubble_sort(void) {
+	for (int i = 0; i < current_tasks - 1; i++) {
+		for (int j = 0; j < current_tasks - i -1; j++) {
+			if (task_array[j].priority > task_array[j+1].priority) {
+				task tmp = task_array[j];
+				task_array[j] = task_array[j+1];
+				task_array[j+1] = tmp;
+			}
+		}
+	}
+}
+
+/*
 * Scheduler implementation 
 */
-void fifo_scheduler(void)
-{
+void priority_scheduler(void) {
+	bubble_sort();
     for (int i = 0; i < current_tasks; i++) {
         task *t = &task_array[i];
         if (t->state == READY) {
             t->state = RUNNING;
             t->led_state(NULL); 
             for (int j = 0; j < t->burst_time; j++) {
-                PRINTF("Task %d is running, burst time left: %d\r\n", t->ID, t->burst_time - j);
+                PRINTF("Task %d is running with priority %d, burst time left: %d\r\n", t->ID, t->priority, t->burst_time - j);
                 for(volatile int delay = 0; delay < 10000000; delay++);
-				if (sw2_ButtonPress || sw3_ButtonPress) return;
             }
             t->state = BLOCKED;
-            PRINTF("Task %d completed and blocked\r\n", t->ID);
+            PRINTF("Task %d completed and BLOCKED\r\n", t->ID);
+            if (sw2_ButtonPress || sw3_ButtonPress) return;
         }
     }
-}
-
-/*
-* Task table
-*/
-void print_task_table(void) {
-    PRINTF("\r\n====== TASK TABLE ======\r\n");
-    PRINTF("ID\tBurst\tState\r\n");
-    for (int i = 0; i < current_tasks; i++) {
-        char* status = (task_array[i].state == READY) ? "READY" : "BLOCKED";
-        PRINTF("%d\t%d\t%s\r\n", task_array[i].ID, task_array[i].burst_time, status);
-    }
-    PRINTF("========================\r\n\n");
+    for (int k = 0; k < current_tasks; k++) {
+		task_array[k].state = READY;
+	}
+	PRINTF(">>RESTARTED: All tasks READY\r\n");
 }
 
 /*!
  * @brief Main function
  */
-int main(void)
-{
+int main(void){
+
     /* Define the init structure for the input switch pin */
     gpio_pin_config_t sw_config = {
         kGPIO_DigitalInput,
@@ -251,7 +271,7 @@ int main(void)
     BOARD_InitHardware();
 
     /* Print a note to terminal. */
-    PRINTF("\r\n FIFO Scheduler \r\n");
+    PRINTF("Priority Base Scheduler \r\n");
 
     /* Init input switch GPIO. */
     GPIO_PinInit(BOARD_SW3_GPIO, BOARD_SW3_GPIO_PIN, &sw_config);
@@ -276,9 +296,10 @@ int main(void)
         		task_array[current_tasks].led_state = off_led_state;
 				task_array[current_tasks].burst_time = (rand() % 5) + 2;
 				task_array[current_tasks].ID = current_tasks + 1;
+				task_array[current_tasks].priority = 1;
 				task_array[current_tasks].state = READY;
 
-				PRINTF(">>SW3 Pressed: Task %d created\r\n", task_array[current_tasks].ID);
+				PRINTF(">>SW2 Pressed: Task %d created\r\n", task_array[current_tasks].ID);
 				current_tasks++;
 				print_task_table();
 			} else {
@@ -287,13 +308,27 @@ int main(void)
 			sw2_ButtonPress = false;
 		}
     	if (sw3_ButtonPress) {
-			for (int k = 0; k < current_tasks; k++) {
-				task_array[k].state = READY;
+			int ready_tasks[current_tasks];
+			int ready_count = 0;
+			for (int i = 0; i < current_tasks; i++) {
+				if (task_array[i].state == READY) {
+					ready_tasks[ready_count] = i;
+					ready_count++;
+				}
 			}
-			PRINTF(">>SW3 Pressed: All tasks READY\r\n");
-			print_task_table();
+			 if (ready_count == 0) {
+				PRINTF("No READY tasks to delete.\r\n");
+			}
+			int c = rand() % ready_count;
+			PRINTF(">>SW3 Pressed: Deleted task %d\r\n", task_array[ready_tasks[c]].ID);
+			for (int j = ready_tasks[c]; j < current_tasks - 1; j++) {
+				task_array[j] = task_array[j + 1];
+			}
+			current_tasks--;
+
 			sw3_ButtonPress = false;
+			print_task_table();
 		}
-    	fifo_scheduler();
+    	priority_scheduler();
     }
 }

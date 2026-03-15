@@ -1,13 +1,13 @@
-# FIFO scheduler
+# Priority scheduler
 
 ## Overview
 
-This project implements a Non-Preemptive FIFO (First-In, First-Out) Task Scheduler for an RGB LED system using function pointers. This scheduler manages a queue of tasks, each with a specific Burst Time, and executes them sequentially until completion.
+This project implements a Priority-Based Task Scheduler for an RGB LED system using function pointers and the Bubble Sort algorithm. The scheduler organizes tasks based on their priority level, ensuring that the most urgent tasks run first, while allowing each task to complete its full Burst Time before switching.
 
-- **SW3:** Resets all completed tasks back to the READY state to restart the cycle
-- **SW2:** Creates and adds a new task to the queue (up to 10 tasks)
+- **SW3:** Dynamically creates a new task with maximum priority (1) and a randomized burst time
+- **SW2:** Deletes a random task that is currently in the READY state
 
-Each task executes its specific LED behavior for a defined burst time. The project demonstrates non-preemptive scheduling, interrupt-driven task management, and a sequential execution flow.
+Each task executes a specific LED behavior for a defined burst time. The project demonstrates non-preemptive priority scheduling, interrupt-driven task management (allowing dynamic creation and deletion of tasks via hardware buttons), and a priority-ordered execution flow
 
 ## Scheduling states
 
@@ -18,14 +18,14 @@ The scheduler manages tasks through three primary states:
 
 ## Scheduler
 
-| Task ID | Next Task (FIFO) | Burst Time  | LEDs ON                     | Perceived Color |
-|:-------:|:----------------:|:------------------:|:----------------------------|:---------------:|
-| **T1**  | T2               | 5                  | Red                         | Red             |
-| **T2**  | T3               | 3                  | Green                       | Green           |
-| **T3**  | T4               | 1                  | Blue                        | Blue            |
-| **T4**  | T5               | 4                  | Green + Blue                | Cyan            |
-| **T5**  | T6               | 2                  | Red + Blue                  | Magenta         |
-| **T6**  | T7               | 6                  | Red + Green                 | Yellow          |
-| **T7**  | T8               | 7                  | Red + Green + Blue          | White          
-| **T8-10**  | END              | Random                  | None                        | Off             |
+| Task ID | Priority | Burst Time | LEDs ON                | Perceived Color |
+|--------|----------|-----------|------------------------|----------------|
+| T1     | 2        | 5         | Red                    | Red            |
+| T2     | 4        | 3         | Green                  | Green          |
+| T3     | 3        | 2         | Blue                   | Blue           |
+| T4     | 7        | 4         | Green + Blue           | Cyan           |
+| T5     | 2        | 8         | Red + Blue             | Magenta        |
+| T6     | 5        | 6         | Red + Green            | Yellow         |
+| T7     | 3        | 7         | Red + Green + Blue     | White          |
+| T8-10  | 1        | Random    | None                   | Off / Dynamic  |Off             |
 
