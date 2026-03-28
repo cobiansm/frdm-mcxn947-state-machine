@@ -1,4 +1,4 @@
-º#include <tasks.h>
+#include <tasks.h>
 #include "main.h"
 #include <queuelib.h>
 #include "stdlib.h"
@@ -89,49 +89,50 @@ switch or have our own register/stack handling in C function.
 
 void PendSV_Handler( void )
 {
-	if (tasks[lastTask].status == END)
-	{
-		/* o aqui, no se */
-		/* solo cambian de ready a running */
-		if (!_isqueueempty(&ready)) //If the ready queue is not empty then we look for more tasks.
-		{
-			/* Falta guardar el contexto de la tarea aqui */
-			asm volatile("MOV      %0, R0\n" : "=r" (tasks[lastTask].stack));
-			/* aprovechar el queue fifo */
 
-			/* Find a new task to run */
-			lastTask = _dequeue(&ready);
-			tasks[lastTask].status = RUNNING;
+	/* Save task state */
+	__asm("MRS     R0, PSP");
+	__asm("STMDB   R0!, {R4, R5, R6, R7, R8, R9, R10, R11, LR}");
 
-			/* Move the task's stack pointer address into r0 */
-			asm volatile("MOV     R0, %0\n" : : "r" (tasks[lastTask].stack));
-			/* Restore the new task's context and jump to the task */
-			asm volatile("LDMIA   R0!, {R4-R11, LR}\n");
-			asm volatile("MSR     PSP, R0\n");
-			asm volatile("BX      LR\n");
-		}
-		else //We return to the kernel (main() function) in case we finished all the tasks.
-		{
-			taskended = 1;
-			/* load kernel state */
-			asm volatile("POP     {R4, R5, R6, R7, R8, R9, R10, R11, IP, LR}  \n");
-			asm volatile("MSR     PSR_NZCVQ, IP \n");
-			asm volatile("BX      LR \n");
-		}
+	asm volatile("MOV      %0, R0\n" : "=r" (tasks[lastTask].stack));
+
+	/* If task didn't end, send it back to the ready queue */
+	if (tasks[lastTask].status != END) {
+		tasks[lastTask].status = READY;
+		_enqueue(&ready, lastTask);
 	}
+
+	/* If ready queue is not empty */
+	if (!_isqueueempty(&ready)) {
+		/* Find a new task to run */
+		lastTask = _dequeue(&ready);
+		tasks[lastTask].status = RUNNING;
+
+		/* Move the task's stack pointer address into r0 */
+		asm volatile("MOV     R0, %0\n" : : "r" (tasks[lastTask].stack));
+		/* Restore the new task's context and jump to the task */
+		asm volatile("LDMIA   R0!, {R4-R11, LR}\n");
+		asm volatile("MSR     PSP, R0\n");
+		asm volatile("BX      LR\n");
+	}
+	/* Return to the kernel (main() function) in case we finished all the tasks */
 	else
 	{
-		//The current task continue execution
+		taskended = 1;
+		/* load kernel state */
+		asm volatile("POP     {R4, R5, R6, R7, R8, R9, R10, R11, IP, LR}  \n");
+		asm volatile("MSR     PSR_NZCVQ, IP \n");
+		asm volatile("BX      LR \n");
 	}
 }
 
 void SysTick_Handler(void)
 {
 	//PRINTF("tick\r\n");
-	if (tasks[lastTask].status == END)
-	{
-		SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
-	}
+	//if (tasks[lastTask].status == END)
+	//{
+	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+	//}
 }
 
 void task_start()

@@ -34,34 +34,42 @@ void task1(void *userdata)
 
 void task2(void *userdata)
 {
-	PRINTF(userdata);
-	PRINTF(": Running...2\n\r");
-	delay(100);
-	task_self_terminal();
+	while (1) {
+		PRINTF(userdata);
+		PRINTF(": Running...2\n\r");
+		delay(100);
+	}
+	//task_self_terminal();
 }
 
 void task3(void *userdata)
 {
-	PRINTF(userdata);
-	PRINTF(": Running...3\n\r");
-	delay(100);
-	task_self_terminal();
+	while (1) {
+		PRINTF(userdata);
+		PRINTF(": Running...3\n\r");
+		delay(100);
+	}
+	//task_self_terminal();
 }
 
 void task4(void *userdata)
 {
-	PRINTF(userdata);
-	PRINTF(": Running...4\n\r");
-	delay(100);
-	task_self_terminal();
+	while (1) {
+		PRINTF(userdata);
+		PRINTF(": Running...4\n\r");
+		delay(100);
+	}
+	//task_self_terminal();
 }
 
 void task5(void *userdata)
 {
-	PRINTF(userdata);
-	PRINTF(": Running...5\n\r");
-	delay(100);
-	task_self_terminal();
+	while (1) {
+		PRINTF(userdata);
+		PRINTF(": Running...5\n\r");
+		delay(100);
+	}
+	//task_self_terminal();
 }
 /*******************************************************************************
  * Definitions
