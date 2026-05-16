@@ -1,0 +1,7 @@
+**/*_TAD_logs/
+/.metadata/
+**/Debug/
+**/Release/
+**/build/
+**/*.launch
+.mcuxpressoide_packages_support/
