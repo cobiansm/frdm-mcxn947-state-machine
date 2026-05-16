@@ -30,12 +30,14 @@
 #endif
 
 #include "lwip/opt.h"
+#include "lwipopts_gen.h"
 #include "lwip/dhcp.h"
 #include "lwip/ip_addr.h"
 #include "lwip/netifapi.h"
 #include "lwip/prot/dhcp.h"
 #include "lwip/tcpip.h"
 #include "lwip/sys.h"
+#include "lwip/sys_arch.h"
 #include "ethernetif.h"
 
 #include "fsl_adapter_gpio.h"
@@ -106,7 +108,6 @@ void tcpipserver_task(void *pvParameters);
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-
 static phy_handle_t phyHandle;
 static netif_ext_callback_t linkStatusCallbackInfo;
 #define MAX_CMD_LENGTH 2
@@ -301,6 +302,7 @@ static void print_dhcp_state(void *arg)
                 PRINTF(" IPv4 Gateway     : %s\r\n\r\n", ipaddr_ntoa(&netif->gw));
                 //TODO DSOAE Set TCPIP event bit
                 //TODO DSOAE TCPIP event bit
+                xEventGroupSetBits(tcpipEvent_group, 0x01);
             }
         }
 

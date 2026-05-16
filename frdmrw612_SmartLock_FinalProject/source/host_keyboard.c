@@ -21,6 +21,8 @@
 char tagID[20] = {0};
 char tagIdchIndex = 0;
 //TODO DSOAE extern the Queue Handler for the servo queue
+extern QueueHandle_t servo_queue;
+extern QueueHandle_t database_queue;
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -148,6 +150,7 @@ static void USB_HostKeyboardPrintKey(uint8_t key, uint8_t shift)
         	//clean the index before starting get a new tagID
         	tagIdchIndex = 0;
         	//TODO DSOAE Send the current tagID to the database using messages
+        	xQueueSend(database_queue, &tagID, 0);
         	PRINTF("TagID scanned: %s.\r\n", tagID);
         }
     }

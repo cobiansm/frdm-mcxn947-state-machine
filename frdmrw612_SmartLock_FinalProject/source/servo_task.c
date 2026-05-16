@@ -23,6 +23,7 @@ uint32_t timerClock;
 volatile uint32_t g_pwmPeriod   = 0U;
 volatile uint32_t g_pulsePeriod = 0U;
 //TODO DSOAE extern the Queue Handler for the servo queue
+extern QueueHandle_t servo_queue;
 
 #define CLOSESERVO   0
 #define OPENSERVO    1
@@ -92,8 +93,8 @@ void servo_task(void *param)
     while (1)
     {
     	//TODO DSOAE wait for new messages on servo_queue using xQueueReceive
-		//while (xQueueReceive(servo_queue, &cmd, portMAX_DELAY) == pdTRUE)
-    	while (0)
+		while (xQueueReceive(servo_queue, &cmd, portMAX_DELAY) == pdTRUE)
+    	//while (0)
 		{
 			switch (cmd)
 			{

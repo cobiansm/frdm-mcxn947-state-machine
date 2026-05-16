@@ -44,11 +44,11 @@
 //Test from the web browser
 
 //TODO DSOAE extern tcpip Events group
-
+extern EventGroupHandle_t tcpipEvent_group;
 //TODO DSOAE extern the Queue Handler for the database queue
-
+extern QueueHandle_t database_queue;
 //TODO DSOAE extern the Queue Handler for the servo queue
-
+extern QueueHandle_t servo_queue;
 
 #if LWIP_NETCONN
 
@@ -66,18 +66,22 @@ void database_task(void *pvParameters)
 	struct netbuf *buf;
 	void *data;
 	u16_t len;
-	char tadID[10];
+	char tagID[10];
 	EventBits_t tcpipBits;
 
 	//TODO DSOAE Wait until TCPIP stack is up and running
+	tcpipBits = xEventGroupWaitBits(tcpipEvent_group,     /* The event group handle. */
+										 0x01,            /* The bit pattern the event group is waiting for. */
+										 pdFALSE,         /* 0x1 will be cleared automatically. */
+										 pdFALSE,         /* Don't wait for both bits, either bit unblock task. */
+										 portMAX_DELAY);
 
 	PRINTF("Database Task Started.\n\r");
 	//TODO DSOAE Wait for new messages on database queue using xQueueReceive
-
-	while (0)
+	while (xQueueReceive(database_queue, &tagID, portMAX_DELAY) == pdTRUE)
+	//while (0)
 	{
-		PRINTF("Received a tadID to Authenticate: %s\n\r", tadID);
-
+		PRINTF("Received a tagID to Authenticate: %s\n\r", tagID);
 		/* Create a new connection identifier. */
 		/* Bind connection to well known port number 1031. */
 		conn = netconn_new(NETCONN_TCP);
@@ -90,7 +94,7 @@ void database_task(void *pvParameters)
 
 		//PRINTF("Authenticate user\n\r");
 		//authenticate user
-		sprintf(HTTPrequest, "GET /nfcauth.php?tagid=%s HTTP/1.0\r\n\r\n", tadID);
+		sprintf(HTTPrequest, "GET /nfcauth.php?tagid=%s HTTP/1.0\r\n\r\n", tagID);
 		//PRINTF("HTTPrequest to database: %s\n\r", HTTPrequest);
 		err = netconn_write(conn, HTTPrequest, strlen(HTTPrequest), NETCONN_COPY);
 		while ((err = netconn_recv(conn, &buf)) == ERR_OK)
@@ -105,17 +109,41 @@ void database_task(void *pvParameters)
 			{
 				PRINTF("User does exists.\n\r");
 				//TODO DSOAE send a message to the servo task to open the door
+				char servo_cmd = 'o';
+				xQueueSend(servo_queue, &servo_cmd, 0);
 			}
 			else
 			{
 				PRINTF("User does NOT exists.\n\r");
+				PRINTF("Register new user\n\r");
+				//register new user
+				//sprintf(HTTPrequest, "GET /nfcreg.php?tagid=4474c7a1e4e81&name=Luis&lastname=Garabito&access=Mortal HTTP/1.0\r\n\r\n");
+				sprintf(HTTPrequest, "GET /nfcreg.php?tagid=%s&name=Nuevo&lastname=Usuario&access=Mortal HTTP/1.0\r\n\r\n", tagID);
+				err = netconn_write(conn, HTTPrequest, strlen(HTTPrequest), NETCONN_COPY);
+				while ((err = netconn_recv(conn, &buf)) == ERR_OK)
+				{
+					do {
+						netbuf_data(buf, &data, &len);
+						PRINTF("Received: %s\n", data);
+					} while (netbuf_next(buf) >= 0);
+					//PRINTF("Received: %s\n", data);
+					result = strncmp("HTTP/1.1 200 OK", data, 15);
+					if (result == 0)
+					{
+						PRINTF("User Registered\n");
+					}
+					netbuf_delete(buf);
+				}
+
+
 			}
 			netbuf_delete(buf);
 		}
 
+
 		//PRINTF("Sensor data Logged\n\r");
 		//datalog sensor
-	//	sprintf(HTTPrequest, "GET /datalog.php?frdm_id=Iteso&sensor=LightSensor&data=%d HTTP/1.0\r\n\r\n", 508353);
+	//	sprintf(HTTPrequest, "GET /datalog.php?frdm_id=Iteso&sensor=LightSensor&data=%d HTTP/1.0\r\n\r\n", tagID);
 	//	err = netconn_write(conn, HTTPrequest, strlen(HTTPrequest), NETCONN_COPY);
 	//	while ((err = netconn_recv(conn, &buf)) == ERR_OK)
 	//	{

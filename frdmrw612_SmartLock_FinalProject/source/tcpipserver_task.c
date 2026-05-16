@@ -34,8 +34,9 @@
 #include "event_groups.h"
 
 //TODO DSOAE extern tcpip Events group
-
+extern EventGroupHandle_t tcpipEvent_group;
 //TODO DSOAE extern the Queue Handler for the servo queue
+extern QueueHandle_t servo_queue;
 
 #if LWIP_NETCONN
 
@@ -53,6 +54,11 @@ void tcpipserver_task(void *pvParameters)
 	EventBits_t tcpipBits;
 
 	//TODO DSOAE Wait until TCPIP stack is up and running
+	tcpipBits = xEventGroupWaitBits(tcpipEvent_group,         /* The event group handle. */
+											 0x01,            /* The bit pattern the event group is waiting for. */
+											 pdFALSE,         /* 0x1 will be cleared automatically. */
+											 pdFALSE,         /* Don't wait for both bits, either bit unblock task. */
+											 portMAX_DELAY);
 
 	PRINTF("TCPIP Admin Server started.\r\n");
 
@@ -86,6 +92,8 @@ void tcpipserver_task(void *pvParameters)
 				{
 					PRINTF("Received: %s\n", data);
 					//TODO send a message to the servo task to open the door
+					char servo_cmd = 'o';
+					xQueueSend(servo_queue, &servo_cmd, 0);
 				}
 				netbuf_delete(buf);
 			}
