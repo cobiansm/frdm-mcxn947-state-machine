@@ -49,7 +49,8 @@ void init_pwm()
     /* CTimer0 counter uses the AHB clock, some CTimer1 modules use the Aysnc clock */
     srcClock_Hz = CTIMER_CLK_FREQ;
 
-    PRINTF("CTimer example to generate a PWM signal\r\n");
+    //MUTEX_PRINTF("CTimer example to generate a PWM signal\r\n");
+	PRINTF("CTimer example to generate a PWM signal\r\n");
 
     CTIMER_GetDefaultConfig(&config);
     timerClock = srcClock_Hz / (config.prescale + 1);
@@ -87,6 +88,7 @@ void servo_task(void *param)
 {
 	char cmd;
 
+	//MUTEX_PRINTF("Servo Task Started.\r\n");
 	PRINTF("Servo Task Started.\r\n");
     init_pwm();
 
@@ -99,13 +101,16 @@ void servo_task(void *param)
 			switch (cmd)
 			{
 				case 'o':
+					//MUTEX_PRINTF("Open servo\r\n");
 					PRINTF("Open servo\r\n");
 					move_Servo (OPENSERVO);
 					vTaskDelay(2000);
+					//MUTEX_PRINTF("Closing servo...\r\n");
 					PRINTF("Closing servo...\r\n");
 					move_Servo (CLOSESERVO);
 				break;
 				case 'c':
+					//MUTEX_PRINTF("Close servo\r\n");
 					PRINTF("Close servo\r\n");
 					move_Servo (CLOSESERVO);
 				break;

@@ -90,6 +90,13 @@ extern "C" {
 
 void sys_assert(const char *pcMessage);
 
+#if LWIP_TCPIP_CORE_LOCKING
+void sys_lock_tcpip_core(void);
+void sys_unlock_tcpip_core(void);
+void sys_check_core_locking(void);
+void sys_mark_tcpip_thread(void);
+#endif
+
 #if defined(__cplusplus)
 }
 #endif /* __cplusplus */

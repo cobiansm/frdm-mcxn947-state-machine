@@ -105,14 +105,52 @@
     GPIO_PinInit(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PORT, BOARD_LED_BLUE_GPIO_PIN, \
                  &(gpio_pin_config_t){kGPIO_DigitalOutput, (output)}) /*!< Enable target LED_BLUE */
 #define LED_BLUE_ON()                                           \
-    GPIO_PortSet(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PORT, \
-                 1U << BOARD_LED_BLUE_GPIO_PIN) /*!< Turn on target LED_BLUE */
+    GPIO_PinWrite(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PORT, BOARD_LED_BLUE_GPIO_PIN, LOGIC_LED_ON)
 #define LED_BLUE_OFF()                                            \
-    GPIO_PortClear(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PORT, \
-                   1U << BOARD_LED_BLUE_GPIO_PIN) /*!< Turn off target LED_BLUE */
+    GPIO_PinWrite(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PORT, BOARD_LED_BLUE_GPIO_PIN, LOGIC_LED_OFF)
 #define LED_BLUE_TOGGLE()                                          \
     GPIO_PortToggle(BOARD_LED_BLUE_GPIO, BOARD_LED_BLUE_GPIO_PORT, \
                     1U << BOARD_LED_BLUE_GPIO_PIN) /*!< Toggle on target LED_BLUE */
+
+/* GREEN LED */
+#ifndef BOARD_LED_GREEN_GPIO
+#define BOARD_LED_GREEN_GPIO GPIO
+#endif
+#define BOARD_LED_GREEN_GPIO_PORT 0U
+#ifndef BOARD_LED_GREEN_GPIO_PIN
+#define BOARD_LED_GREEN_GPIO_PIN 12U
+#endif
+
+#define LED_GREEN_INIT(output)                                                            \
+    GPIO_PinInit(BOARD_LED_GREEN_GPIO, BOARD_LED_GREEN_GPIO_PORT, BOARD_LED_GREEN_GPIO_PIN, \
+                 &(gpio_pin_config_t){kGPIO_DigitalOutput, (output)})
+#define LED_GREEN_ON()                                           \
+    GPIO_PinWrite(BOARD_LED_GREEN_GPIO, BOARD_LED_GREEN_GPIO_PORT, BOARD_LED_GREEN_GPIO_PIN, LOGIC_LED_ON)
+#define LED_GREEN_OFF()                                            \
+    GPIO_PinWrite(BOARD_LED_GREEN_GPIO, BOARD_LED_GREEN_GPIO_PORT, BOARD_LED_GREEN_GPIO_PIN, LOGIC_LED_OFF)
+#define LED_GREEN_TOGGLE()                                          \
+    GPIO_PortToggle(BOARD_LED_GREEN_GPIO, BOARD_LED_GREEN_GPIO_PORT, \
+                    1U << BOARD_LED_GREEN_GPIO_PIN)
+
+/* RED LED */
+#ifndef BOARD_LED_RED_GPIO
+#define BOARD_LED_RED_GPIO GPIO
+#endif
+#define BOARD_LED_RED_GPIO_PORT 0U
+#ifndef BOARD_LED_RED_GPIO_PIN
+#define BOARD_LED_RED_GPIO_PIN 1U
+#endif
+
+#define LED_RED_INIT(output)                                                            \
+    GPIO_PinInit(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PORT, BOARD_LED_RED_GPIO_PIN, \
+                 &(gpio_pin_config_t){kGPIO_DigitalOutput, (output)})
+#define LED_RED_ON()                                           \
+    GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PORT, BOARD_LED_RED_GPIO_PIN, LOGIC_LED_ON)
+#define LED_RED_OFF()                                            \
+    GPIO_PinWrite(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PORT, BOARD_LED_RED_GPIO_PIN, LOGIC_LED_OFF)
+#define LED_RED_TOGGLE()                                          \
+    GPIO_PortToggle(BOARD_LED_RED_GPIO, BOARD_LED_RED_GPIO_PORT, \
+                    1U << BOARD_LED_RED_GPIO_PIN)
 
 /* Board SW PIN */
 #ifndef BOARD_SW2_GPIO

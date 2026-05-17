@@ -35,6 +35,9 @@
 #include "lwip/opt.h"
 #include "event_groups.h"
 #include "stdio.h"
+#include "board.h"
+#include <string.h>
+#include "app.h"
 
 //Test from the web browser
 //	http://192.168.1.2:1031/datalog.php?frdm_id=FRMD-Profe&sensor=acc&data=123123
@@ -54,6 +57,13 @@ extern QueueHandle_t servo_queue;
 
 #include "lwip/sys.h"
 #include "lwip/api.h"
+
+const char *SD_CARD[] = {
+    "0708782819",
+    "1234567890",
+};
+
+#define NUM_AUTHORIZED_TAGS (sizeof(SD_CARD) / sizeof(SD_CARD[0]))
 /*-----------------------------------------------------------------------------------*/
 void database_task(void *pvParameters)
 {
@@ -68,19 +78,27 @@ void database_task(void *pvParameters)
 	u16_t len;
 	char tagID[10];
 	EventBits_t tcpipBits;
+	uint8_t accessGranted;
 
 	//TODO DSOAE Wait until TCPIP stack is up and running
 	tcpipBits = xEventGroupWaitBits(tcpipEvent_group,     /* The event group handle. */
 										 0x01,            /* The bit pattern the event group is waiting for. */
 										 pdFALSE,         /* 0x1 will be cleared automatically. */
 										 pdFALSE,         /* Don't wait for both bits, either bit unblock task. */
+										 //100);
 										 portMAX_DELAY);
 
+	//MUTEX_PRINTF("Database Task Started.\n\r");
 	PRINTF("Database Task Started.\n\r");
 	//TODO DSOAE Wait for new messages on database queue using xQueueReceive
 	while (xQueueReceive(database_queue, &tagID, portMAX_DELAY) == pdTRUE)
 	//while (0)
 	{
+		accessGranted = 0;
+		LED_BLUE_OFF();
+		LED_RED_OFF();
+		LED_GREEN_OFF();
+		//MUTEX_PRINTF("Received a tagID to Authenticate: %s\n\r", tagID);
 		PRINTF("Received a tagID to Authenticate: %s\n\r", tagID);
 		/* Create a new connection identifier. */
 		/* Bind connection to well known port number 1031. */
@@ -90,54 +108,109 @@ void database_task(void *pvParameters)
 		LWIP_ERROR("tcpecho: invalid conn", (conn != NULL), return;);
 
 		IP4_ADDR(&ipaddr, 192,168,1,2);
-		netconn_connect(conn, &ipaddr, 1031);
+		err = netconn_connect(conn, &ipaddr, 1031);
 
-		//PRINTF("Authenticate user\n\r");
-		//authenticate user
-		sprintf(HTTPrequest, "GET /nfcauth.php?tagid=%s HTTP/1.0\r\n\r\n", tagID);
-		//PRINTF("HTTPrequest to database: %s\n\r", HTTPrequest);
-		err = netconn_write(conn, HTTPrequest, strlen(HTTPrequest), NETCONN_COPY);
-		while ((err = netconn_recv(conn, &buf)) == ERR_OK)
-		{
-			do {
-				netbuf_data(buf, &data, &len);
-				//PRINTF("Received: %s\n", data);
-			} while (netbuf_next(buf) >= 0);
-			//PRINTF("Received: %s\n", data);
-			charptr = strstr((const char *)data, "tag_id: ");
-			if (charptr)
+		/* If there's connection to the server */
+		if (err == ERR_OK){
+			//MUTEX_PRINTF("Authenticating user in database.\n\r");
+			PRINTF("Authenticating user in database.\n\r");
+			//authenticate user
+			sprintf(HTTPrequest, "GET /nfcauth.php?tagid=%s HTTP/1.0\r\n\r\n", tagID);
+			PRINTF("HTTPrequest to database: %s\n\r", HTTPrequest);
+			err = netconn_write(conn, HTTPrequest, strlen(HTTPrequest), NETCONN_COPY);
+			while ((err = netconn_recv(conn, &buf)) == ERR_OK)
 			{
-				PRINTF("User does exists.\n\r");
-				//TODO DSOAE send a message to the servo task to open the door
+				do {
+					netbuf_data(buf, &data, &len);
+					//PRINTF("Received: %s\n", data);
+				} while (netbuf_next(buf) >= 0);
+				//PRINTF("Received: %s\n", data);
+				charptr = strstr((const char *)data, "tag_id: ");
+				if (charptr)
+				{
+					//MUTEX_PRINTF("User exists, welcome.\n\r");
+					PRINTF("User exists, welcome.\n\r");
+					LED_BLUE_OFF();
+					LED_RED_OFF();
+					LED_GREEN_ON();
+					//TODO DSOAE send a message to the servo task to open the door
+					char servo_cmd = 'o';
+					xQueueSend(servo_queue, &servo_cmd, 0);
+				}
+				else
+				{
+					//MUTEX_PRINTF("User does NOT exists.\n\r");
+					PRINTF("User does NOT exists.\n\r");
+					LED_BLUE_OFF();
+					LED_RED_ON();
+					LED_GREEN_OFF();
+					//MUTEX_PRINTF("Register new user.\n\r");
+					PRINTF("Register new user.\n\r");
+					LED_BLUE_ON();
+					LED_RED_ON();
+					LED_GREEN_OFF();
+					//register new user
+					//sprintf(HTTPrequest, "GET /nfcreg.php?tagid=4474c7a1e4e81&name=Luis&lastname=Garabito&access=Mortal HTTP/1.0\r\n\r\n");
+					sprintf(HTTPrequest, "GET /nfcreg.php?tagid=%s&name=Nuevo&lastname=Usuario&access=Mortal HTTP/1.0\r\n\r\n", tagID);
+					err = netconn_write(conn, HTTPrequest, strlen(HTTPrequest), NETCONN_COPY);
+					while ((err = netconn_recv(conn, &buf)) == ERR_OK)
+					{
+						do {
+							netbuf_data(buf, &data, &len);
+							//MUTEX_PRINTF("Received: %s\n", data);
+							PRINTF("Received: %s\n", data);
+						} while (netbuf_next(buf) >= 0);
+						//PRINTF("Received: %s\n", data);
+						result = strncmp("HTTP/1.1 200 OK", data, 15);
+						if (result == 0)
+						{
+							//MUTEX_PRINTF("User Registered.\n\r");
+							PRINTF("User Registered.\n\r");
+							LED_BLUE_ON();
+							LED_RED_ON();
+							LED_GREEN_ON();
+						}
+						netbuf_delete(buf);
+					}
+				}
+				netbuf_delete(buf);
+			}
+			netconn_close(conn);
+		}
+
+		else
+		{
+			//MUTEX_PRINTF("Authenticating user locally.\n\r");
+			PRINTF("Authenticating user locally.\n\r");
+			for (int i = 0; i < NUM_AUTHORIZED_TAGS; i++) {
+				if (strcmp(tagID, SD_CARD[i]) == 0) {
+					//MUTEX_PRINTF("User exists.\n\r");
+					PRINTF("User exists.\n\r");
+					accessGranted = 1;
+					break;
+				}
+			}
+			if (accessGranted) {
+				LED_BLUE_OFF();
+				LED_RED_OFF();
+				LED_GREEN_ON();
+				//MUTEX_PRINTF("Welcome.\n\r");
+				PRINTF("Welcome.\n\r");
 				char servo_cmd = 'o';
 				xQueueSend(servo_queue, &servo_cmd, 0);
 			}
 			else
 			{
-				PRINTF("User does NOT exists.\n\r");
-				PRINTF("Register new user\n\r");
-				//register new user
-				//sprintf(HTTPrequest, "GET /nfcreg.php?tagid=4474c7a1e4e81&name=Luis&lastname=Garabito&access=Mortal HTTP/1.0\r\n\r\n");
-				sprintf(HTTPrequest, "GET /nfcreg.php?tagid=%s&name=Nuevo&lastname=Usuario&access=Mortal HTTP/1.0\r\n\r\n", tagID);
-				err = netconn_write(conn, HTTPrequest, strlen(HTTPrequest), NETCONN_COPY);
-				while ((err = netconn_recv(conn, &buf)) == ERR_OK)
-				{
-					do {
-						netbuf_data(buf, &data, &len);
-						PRINTF("Received: %s\n", data);
-					} while (netbuf_next(buf) >= 0);
-					//PRINTF("Received: %s\n", data);
-					result = strncmp("HTTP/1.1 200 OK", data, 15);
-					if (result == 0)
-					{
-						PRINTF("User Registered\n");
-					}
-					netbuf_delete(buf);
-				}
-
-
+				LED_BLUE_OFF();
+				LED_RED_ON();
+				LED_GREEN_OFF();
+				//MUTEX_PRINTF("User does not have access.\n\r");
+				PRINTF("User does not have access.\n\r");
+				char servo_cmd = 'c';
+				xQueueSend(servo_queue, &servo_cmd, 0);
+				//MUTEX_PRINTF("User does not have access.\n\r");
+				PRINTF("User does not have access.\n\r");
 			}
-			netbuf_delete(buf);
 		}
 
 
@@ -199,7 +272,8 @@ void database_task(void *pvParameters)
 	//		}
 	//		netbuf_delete(buf);
 	//	}
-		netconn_close(conn);
+	//	netconn_close(conn);
+		
 		netconn_delete(conn);
 	}
 

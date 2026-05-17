@@ -37,8 +37,8 @@
 #include "lwip/prot/dhcp.h"
 #include "lwip/tcpip.h"
 #include "lwip/sys.h"
-#include "lwip/sys_arch.h"
 #include "ethernetif.h"
+#include "semphr.h"
 
 #include "fsl_adapter_gpio.h"
 
@@ -115,9 +115,25 @@ static netif_ext_callback_t linkStatusCallbackInfo;
 QueueHandle_t servo_queue = NULL;
 QueueHandle_t database_queue = NULL;
 EventGroupHandle_t tcpipEvent_group = NULL;
+SemaphoreHandle_t xMutexPrintf;
 /*******************************************************************************
  * Code
  ******************************************************************************/
+
+/* MUTEX for PRINTF */
+void MUTEX_PRINTF(const char *format, ...) {
+	if (xMutexPrintf == NULL) {
+		return;
+	}
+	if (xSemaphoreTake(xMutexPrintf, portMAX_DELAY) == pdTRUE) {
+		va_list args;
+		va_start(args, format);
+		vprintf(format, args);
+		va_end(args);
+		fflush(stdout);
+		xSemaphoreGive(xMutexPrintf);
+	}
+}
 
 /*!
  * @brief Link status callback - prints link status events.
@@ -127,8 +143,8 @@ static void linkStatusCallback(struct netif *netif_, netif_nsc_reason_t reason, 
     if (reason != LWIP_NSC_LINK_CHANGED)
         return;
 
+    //MUTEX_PRINTF("[LINK STATE] netif=%d, state=%s", netif_->num, args->link_changed.state ? "up" : "down");
     PRINTF("[LINK STATE] netif=%d, state=%s", netif_->num, args->link_changed.state ? "up" : "down");
-
     if (args->link_changed.state)
     {
         char *speedStr;
@@ -162,9 +178,11 @@ static void linkStatusCallback(struct netif *netif_, netif_nsc_reason_t reason, 
                 break;
         }
 
+        //MUTEX_PRINTF(", speed=%s_%s", speedStr, duplexStr);
         PRINTF(", speed=%s_%s", speedStr, duplexStr);
     }
 
+    //MUTEX_PRINTF("\r\n");
     PRINTF("\r\n");
 }
 
@@ -210,12 +228,18 @@ static void stack_init(void *arg)
     netifapi_netif_set_default(&netif);
     netifapi_netif_set_up(&netif);
 
-    while (ethernetif_wait_linkup(&netif, 5000) != ERR_OK)
-    {
-        PRINTF("PHY Auto-negotiation failed. Please check the cable connection and link partner setting.\r\n");
-    }
+   // while (ethernetif_wait_linkup(&netif, 5000) != ERR_OK)
+   // {
+    	//MUTEX_PRINTF("PHY Auto-negotiation failed. Please check the cable connection and link partner setting.\r\n");
+       // PRINTF("PHY Auto-negotiation failed. Please check the cable connection and link partner setting.\r\n");
+   // }
+    xEventGroupSetBits(tcpipEvent_group, 0x01); 
 
     netifapi_dhcp_start(&netif);
+
+    //MUTEX_PRINTF("\r\n************************************************\r\n");
+    //MUTEX_PRINTF(" DHCP example\r\n");
+    //MUTEX_PRINTF("************************************************\r\n");
 
     PRINTF("\r\n************************************************\r\n");
     PRINTF(" DHCP example\r\n");
@@ -252,54 +276,71 @@ static void print_dhcp_state(void *arg)
         {
             dhcp_last_state = dhcp->state;
 
+            //MUTEX_PRINTF(" DHCP state       : ");
             PRINTF(" DHCP state       : ");
             switch (dhcp_last_state)
             {
                 case DHCP_STATE_OFF:
+                    //MUTEX_PRINTF("OFF");
                     PRINTF("OFF");
                     break;
                 case DHCP_STATE_REQUESTING:
+                    //MUTEX_PRINTF("REQUESTING");
                     PRINTF("REQUESTING");
                     break;
                 case DHCP_STATE_INIT:
+                    //MUTEX_PRINTF("INIT");
                     PRINTF("INIT");
                     break;
                 case DHCP_STATE_REBOOTING:
+                    //MUTEX_PRINTF("REBOOTING");
                     PRINTF("REBOOTING");
                     break;
                 case DHCP_STATE_REBINDING:
+                    //MUTEX_PRINTF("REBINDING");
                     PRINTF("REBINDING");
                     break;
                 case DHCP_STATE_RENEWING:
+                    //MUTEX_PRINTF("RENEWING");
                     PRINTF("RENEWING");
                     break;
                 case DHCP_STATE_SELECTING:
+                    //MUTEX_PRINTF("SELECTING");
                     PRINTF("SELECTING");
                     break;
                 case DHCP_STATE_INFORMING:
+                    //MUTEX_PRINTF("INFORMING");
                     PRINTF("INFORMING");
                     break;
                 case DHCP_STATE_CHECKING:
+                    //MUTEX_PRINTF("CHECKING");
                     PRINTF("CHECKING");
                     break;
                 case DHCP_STATE_BOUND:
+                    //MUTEX_PRINTF("BOUND");
                     PRINTF("BOUND");
                     break;
                 case DHCP_STATE_BACKING_OFF:
+                    //MUTEX_PRINTF("BACKING_OFF");
                     PRINTF("BACKING_OFF");
                     break;
                 default:
+                    //MUTEX_PRINTF("%u", dhcp_last_state);
                     PRINTF("%u", dhcp_last_state);
                     assert(0);
                     break;
             }
+            //MUTEX_PRINTF("\r\n");
             PRINTF("\r\n");
 
             if (dhcp_last_state == DHCP_STATE_BOUND)
             {
+            	//MUTEX_PRINTF("\r\n IPv4 Address     : %s\r\n", ipaddr_ntoa(&netif->ip_addr));
+            	//MUTEX_PRINTF(" IPv4 Subnet mask : %s\r\n", ipaddr_ntoa(&netif->netmask));
+            	//MUTEX_PRINTF(" IPv4 Gateway     : %s\r\n\r\n", ipaddr_ntoa(&netif->gw));
                 PRINTF("\r\n IPv4 Address     : %s\r\n", ipaddr_ntoa(&netif->ip_addr));
-                PRINTF(" IPv4 Subnet mask : %s\r\n", ipaddr_ntoa(&netif->netmask));
-                PRINTF(" IPv4 Gateway     : %s\r\n\r\n", ipaddr_ntoa(&netif->gw));
+            	PRINTF(" IPv4 Subnet mask : %s\r\n", ipaddr_ntoa(&netif->netmask));
+            	PRINTF(" IPv4 Gateway     : %s\r\n\r\n", ipaddr_ntoa(&netif->gw));
                 //TODO DSOAE Set TCPIP event bit
                 //TODO DSOAE TCPIP event bit
                 xEventGroupSetBits(tcpipEvent_group, 0x01);
@@ -391,6 +432,7 @@ static usb_status_t USB_HostEvent(usb_device_handle deviceHandle,
 
         case kUSB_HostEventNotSupported:
             usb_echo("device not supported.\r\n");
+            //MUTEX_PRINTF("device not supported.\r\n");
             break;
 
         case kUSB_HostEventEnumerationDone:
@@ -411,6 +453,7 @@ static usb_status_t USB_HostEvent(usb_device_handle deviceHandle,
 
         case kUSB_HostEventEnumerationFail:
             usb_echo("enumeration failed\r\n");
+            //MUTEX_PRINTF("enumeration failed\r\n");
             break;
 
         default:
@@ -433,11 +476,13 @@ static void USB_HostApplicationInit(void)
     if (status != kStatus_USB_Success)
     {
         usb_echo("host init error\r\n");
+        //MUTEX_PRINTF("host init error\r\n");
         return;
     }
     USB_HostIsrEnable();
 
     usb_echo("host init done\r\n");
+    //MUTEX_PRINTF("host init done\r\n");
 }
 
 static void USB_HostTask(void *param)
@@ -460,12 +505,18 @@ int main(void)
 {
     BOARD_InitHardware();
 
+    LED_GREEN_INIT(LOGIC_LED_OFF);
+    LED_RED_INIT(LOGIC_LED_OFF);
+    LED_BLUE_INIT(LOGIC_LED_ON);
+
 	//RTOS objects needed to be started before the scheduler:
 	servo_queue = xQueueCreate(10, MAX_CMD_LENGTH);
 	database_queue = xQueueCreate(10, MAX_TAGID_LENGTH);
 	tcpipEvent_group = xEventGroupCreate();
 
     USB_HostApplicationInit();
+
+    xMutexPrintf = xSemaphoreCreateMutex();
 
     /* Initialize lwIP from thread */
     if (sys_thread_new("main", stack_init, NULL, INIT_THREAD_STACKSIZE, 5) == NULL)
@@ -475,26 +526,31 @@ int main(void)
 
     if (xTaskCreate(USB_HostTask, "usb host task", 2000L / sizeof(portSTACK_TYPE), g_HostHandle, 4, NULL) != pdPASS)
     {
-        usb_echo("create host task error\r\n");
+    	//MUTEX_PRINTF("create host task error\r\n");
+        PRINTF("create host task error\r\n");
     }
 
     if (xTaskCreate(USB_HostApplicationKeyboardTask, "keyboard task", 2000L / sizeof(portSTACK_TYPE),&g_HostHidKeyboard, 3, NULL) != pdPASS)
     {
-        usb_echo("create mouse task error\r\n");
+    	//MUTEX_PRINTF("create mouse task error\r\n");
+        PRINTF("create mouse task error\r\n");
     }
 
     if (xTaskCreate(tcpipserver_task, "tcpipserver_task", 2000L / sizeof(portSTACK_TYPE), NULL, 3, NULL) != pdPASS)
     {
+    	//MUTEX_PRINTF("create host task error\r\n");
         PRINTF("create host task error\r\n");
     }
 
     if (xTaskCreate(servo_task, "Servo task", 2000L / sizeof(portSTACK_TYPE), NULL, 3, NULL) != pdPASS)
     {
+    	//MUTEX_PRINTF("create host task error\r\n");
         PRINTF("create host task error\r\n");
     }
 
     if (xTaskCreate(database_task, "Database task", 3000L / sizeof(portSTACK_TYPE), NULL, 3, NULL) != pdPASS)
     {
+    	//MUTEX_PRINTF("create host task error\r\n");
         PRINTF("create host task error\r\n");
     }
 

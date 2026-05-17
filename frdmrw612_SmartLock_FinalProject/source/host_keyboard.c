@@ -132,15 +132,18 @@ static void USB_HostKeyboardPrintKey(uint8_t key, uint8_t shift)
 {
     if (key == 0x4B)
     {
-        usb_echo("page_up"); /* for supporting usb device hid keyboard example */
+    	//MUTEX_PRINTF("page_up"); /* for supporting usb device hid keyboard example */
+        PRINTF("page_up");
     }
     else if (key == 0x4E)
     {
-        usb_echo("page_down"); /* for supporting usb device hid keyboard example */
+    	//MUTEX_PRINTF("page_down"); /* for supporting usb device hid keyboard example */
+        PRINTF("page_down");
     }
     else if (key <= 56)
     {
-        usb_echo("%c", g_HostKeyboardTable[key][shift]);
+    	//MUTEX_PRINTF("%c\r\n", g_HostKeyboardTable[key][shift]);
+        PRINTF("%c", g_HostKeyboardTable[key][shift]);
         //Save every char on the tagID var.
         tagID[tagIdchIndex++] = g_HostKeyboardTable[key][shift];
         if (g_HostKeyboardTable[key][shift] == '\n')
@@ -151,7 +154,8 @@ static void USB_HostKeyboardPrintKey(uint8_t key, uint8_t shift)
         	tagIdchIndex = 0;
         	//TODO DSOAE Send the current tagID to the database using messages
         	xQueueSend(database_queue, &tagID, 0);
-        	PRINTF("TagID scanned: %s.\r\n", tagID);
+        	//MUTEX_PRINTF("TagID scanned: %s.\r\n", tagID);
+            PRINTF("TagID scanned: %s.\r\n", tagID);
         }
     }
     else
@@ -301,11 +305,13 @@ void USB_HostHidKeyboardTask(void *param)
                 if (USB_HostHidInit(keyboardInstance->deviceHandle, &keyboardInstance->classHandle) !=
                     kStatus_USB_Success)
                 {
-                    usb_echo("host hid class initialize fail\r\n");
+                	//MUTEX_PRINTF("host hid class initialize fail\r\n");
+                    PRINTF("host hid class initialize fail\r\n");
                 }
                 else
                 {
-                    usb_echo("keyboard attached\r\n");
+                	//MUTEX_PRINTF("keyboard attached\r\n");
+                    PRINTF("keyboard attached\r\n");
                 }
                 for (index = 0; index < 6; ++index)
                 {
@@ -327,7 +333,8 @@ void USB_HostHidKeyboardTask(void *param)
                     keyboardInstance->keyboardBuffer[index] = 0x00;
                 }
                 keyboardInstance->keyboardBuffer[6] = keyboardInstance->keyboardBuffer[7] = 0x00;
-                usb_echo("keyboard detached\r\n");
+                //MUTEX_PRINTF("keyboard detached\r\n");
+                PRINTF("keyboard detached\r\n");
                 break;
 
             default:
@@ -346,7 +353,8 @@ void USB_HostHidKeyboardTask(void *param)
             if (USB_HostHidSetInterface(keyboardInstance->classHandle, keyboardInstance->interfaceHandle, 0,
                                         USB_HostHidControlCallback, keyboardInstance) != kStatus_USB_Success)
             {
-                usb_echo("set interface error\r\n");
+            	//MUTEX_PRINTF("set interface error\r\n");
+                PRINTF("set interface error\r\n");
             }
             break;
 
@@ -360,7 +368,8 @@ void USB_HostHidKeyboardTask(void *param)
             if (USB_HostHidSetIdle(keyboardInstance->classHandle, 0, 0, USB_HostHidControlCallback, keyboardInstance) !=
                 kStatus_USB_Success)
             {
-                usb_echo("error in USB_HostHidSetIdle\r\n");
+            	//MUTEX_PRINTF("error in USB_HostHidSetIdle\r\n");
+                PRINTF("error in USB_HostHidSetIdle\r\n");
             }
             break;
 
@@ -401,7 +410,8 @@ void USB_HostHidKeyboardTask(void *param)
             }
             if (keyboardReportLength > HID_BUFFER_SIZE)
             {
-                usb_echo("hid buffer is too small\r\n");
+            	//MUTEX_PRINTF("hid buffer is too small\r\n");
+                PRINTF("hid buffer is too small\r\n");
                 keyboardInstance->runState = kUSB_HostHidRunIdle;
                 return;
             }
@@ -423,7 +433,8 @@ void USB_HostHidKeyboardTask(void *param)
             if (USB_HostHidSetProtocol(keyboardInstance->classHandle, USB_HOST_HID_REQUEST_PROTOCOL_REPORT,
                                        USB_HostHidControlCallback, keyboardInstance) != kStatus_USB_Success)
             {
-                usb_echo("error in USB_HostHidSetProtocol\r\n");
+            	//MUTEX_PRINTF("error in USB_HostHidSetProtocol\r\n");
+                PRINTF("error in USB_HostHidSetProtocol\r\n");
             }
             break;
 
@@ -434,7 +445,8 @@ void USB_HostHidKeyboardTask(void *param)
                                 keyboardInstance->maxPacketSize, USB_HostHidInCallback,
                                 keyboardInstance) != kStatus_USB_Success)
             {
-                usb_echo("error in USB_HostHidRecv\r\n");
+            	//MUTEX_PRINTF("error in USB_HostHidRecv\r\n");
+                PRINTF("error in USB_HostHidRecv\r\n");
             }
             break;
 
@@ -447,7 +459,8 @@ void USB_HostHidKeyboardTask(void *param)
                                 keyboardInstance->maxPacketSize, USB_HostHidInCallback,
                                 keyboardInstance) != kStatus_USB_Success)
             {
-                usb_echo("Error in USB_HostHidRecv\r\n");
+            	//MUTEX_PRINTF("Error in USB_HostHidRecv\r\n");
+                PRINTF("Error in USB_HostHidRecv\r\n");
             }
             break;
 
@@ -458,7 +471,8 @@ void USB_HostHidKeyboardTask(void *param)
                                 keyboardInstance->maxPacketSize, USB_HostHidInCallback,
                                 keyboardInstance) != kStatus_USB_Success)
             {
-                usb_echo("error in USB_HostHidRecv\r\n");
+            	//MUTEX_PRINTF("error in USB_HostHidRecv\r\n");
+                PRINTF("error in USB_HostHidRecv\r\n");
             }
             break;
 
@@ -535,15 +549,19 @@ usb_status_t USB_HostHidKeyboardEvent(usb_device_handle deviceHandle,
                         g_HostHidKeyboard.deviceState = kStatus_DEV_Attached;
 
                         USB_HostHelperGetPeripheralInformation(deviceHandle, kUSB_HostGetDevicePID, &infoValue);
-                        usb_echo("hid keyboard attached:pid=0x%x", infoValue);
+                        //MUTEX_PRINTF("hid keyboard attached:pid=0x%x", infoValue);
+                        PRINTF("hid keyboard attached:pid=0x%x", infoValue);
                         USB_HostHelperGetPeripheralInformation(deviceHandle, kUSB_HostGetDeviceVID, &infoValue);
-                        usb_echo("vid=0x%x ", infoValue);
+                        //MUTEX_PRINTF("vid=0x%x ", infoValue);
+                        PRINTF("vid=0x%x ", infoValue);
                         USB_HostHelperGetPeripheralInformation(deviceHandle, kUSB_HostGetDeviceAddress, &infoValue);
-                        usb_echo("address=%d\r\n", infoValue);
+                        //MUTEX_PRINTF("address=%d\r\n", infoValue);
+                        PRINTF("address=%d\r\n", infoValue);
                     }
                     else
                     {
-                        usb_echo("not idle host keyboard instance\r\n");
+                    	//MUTEX_PRINTF("not idle host keyboard instance\r\n");
+                        PRINTF("not idle host keyboard instance\r\n");
                         status = kStatus_USB_Error;
                     }
                 }

@@ -10,6 +10,8 @@
 #include "usb_host_config.h"
 #include "usb_host.h"
 #include "fsl_device_registers.h"
+#include "semphr.h"
+#include <stdarg.h>
 
 #include "fsl_phyksz8081.h"
 /*******************************************************************************
@@ -114,5 +116,8 @@ extern phy_ksz8081_resource_t g_phy_resource;
 #define CTIMER          CTIMER0         /* Timer 0 */
 #define CTIMER_MAT_OUT  kCTIMER_Match_0 /* Match output 0 */
 #define CTIMER_CLK_FREQ CLOCK_GetCTimerClkFreq(0)
+
+extern SemaphoreHandle_t xMutexPrintf;
+void MUTEX_PRINTF(const char *format, ...);
 
 #endif /* __APP_H__ */

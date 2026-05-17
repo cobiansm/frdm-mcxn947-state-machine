@@ -42,6 +42,7 @@ extern QueueHandle_t servo_queue;
 
 #include "lwip/sys.h"
 #include "lwip/api.h"
+#include "app.h"
 /*-----------------------------------------------------------------------------------*/
 void tcpipserver_task(void *pvParameters)
 {
@@ -60,7 +61,8 @@ void tcpipserver_task(void *pvParameters)
 											 pdFALSE,         /* Don't wait for both bits, either bit unblock task. */
 											 portMAX_DELAY);
 
-	PRINTF("TCPIP Admin Server started.\r\n");
+	//MUTEX_PRINTF("TCPIP Admin Server started.\n\r");
+	PRINTF("TCPIP Admin Server started.\n\r");
 
 	/* Create a new connection identifier. */
 	/* Bind connection to well known port number 1030. */
@@ -90,7 +92,8 @@ void tcpipserver_task(void *pvParameters)
 				result = strncmp("Open", data, 4);
 				if (result == 0)
 				{
-					PRINTF("Received: %s\n", data);
+					//MUTEX_PRINTF("Received: %s\n\r", data);
+					PRINTF("Received: %s\n\r", data);
 					//TODO send a message to the servo task to open the door
 					char servo_cmd = 'o';
 					xQueueSend(servo_queue, &servo_cmd, 0);
